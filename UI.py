@@ -12,13 +12,13 @@ import os, sys, r2pipe
 from Script import Script
 
 from Project import Project
+from BinaryFile import BinaryFile
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 
 import XML
 from newProject import Ui_newProject
-from BinaryFileErrorOverlay import Ui_binaryFileErrorWindow
 from XML import Notepad
 
 from pathlib import Path, PureWindowsPath
@@ -27,21 +27,48 @@ from pathlib import Path, PureWindowsPath
 class Ui_MainWindow(object):
 
     def __init__(self):
-        self.uiNew = Ui_newProject()
-        self.uiBError = Ui_binaryFileErrorWindow()
         self.windowNew = QtWidgets.QDialog()
-        self.windowError = QtWidgets.QDialog()
+        self.windowBinaryError = QtWidgets.QDialog()
+        self.windowFileError = QtWidgets.QDialog()
         self.text = None
         self.contents = None
         self.le = None
 
     def projectWindow(self):
-        self.uiNew.setupUi(self.windowNew)
+        self.setupUiCreate(self.windowNew)
         self.windowNew.show()
 
+    def saveProject(self):
+        if self.binaryFilePathField.text() == "":
+            self.fileErrorWindow()
+        else:
+            #Save Project
+            print("ok")
+
+    def deleteProject(self):
+        print('delete')
+        #if self.binaryFilePathField.text() == "":
+            #self.fileErrorWindow()
+        #else:
+            #Save Project
+            #print("ok")
+
+    def createProject(self, name, description):
+        if not name or not description:
+            print("Failed")
+        else:
+            self.project = Project(name, description, self.binary)
+            self.projectNameField.setText(self.project.name)
+            self.projectDescriptionField.setText(self.project.description)
+            self.projectList.addItem(self.project.name)
+
     def binaryErrorWindow(self):
-        self.uiBError.setupUi(self.windowError)
-        self.windowError.show()
+        self.setupUiBinaryError(self.windowBinaryError)
+        self.windowBinaryError.show()
+
+    def fileErrorWindow(self):
+        self.setupUiFileError(self.windowFileError)
+        self.windowFileError.show()
 
     def getBinaryFilePath(self):
         filename = QFileDialog.getOpenFileName(self.centralwidget, 'Open File', os.getenv('HOME'))
@@ -49,49 +76,62 @@ class Ui_MainWindow(object):
             self.path = str(filename)
             # self.analysis = Script()
             self.path = self.path.replace("(", "").replace("'", "").split(",")[0]
-            self.r2 = r2pipe.open(self.path)
+
+            self.binary = BinaryFile(self.path)
+
+            self.r2 = r2pipe.open(self.binary.path)
+
             self.binaryInfo = self.r2.cmdj('ij')
-            if (self.binaryInfo.get("bin").get("arch") != "x86"):
+            print(self.binaryInfo)
+            print(self.binaryInfo.get("core").get("type"))
+            try:
+                if (self.binaryInfo.get("bin").get("arch") != "x86") or ((self.binaryInfo.get("core").get("type") != "Executable file") and (self.binaryInfo.get("core").get("type") != "EXEC (Executable file)")):
+                    self.binaryErrorWindow()
+                    self.r2 = ""
+                    self.fileProperties.setText("")
+                    self.binaryFilePathField.setText("")
+                else:
+                    self.binaryFilePathField.setText(str(self.path))
+                    self.fileProperties.append("arch\t\t\t" + self.binaryInfo.get("bin").get("arch") + "\n")
+                    self.fileProperties.append("baddr\t\t\t" + str(self.binaryInfo.get("bin").get("baddr")) + "\n")
+                    self.fileProperties.append("binsz\t\t\t" + str(self.binaryInfo.get("bin").get("binsz")) + "\n")
+                    self.fileProperties.append("bintype\t\t\t" + self.binaryInfo.get("bin").get("bintype") + "\n")
+                    self.fileProperties.append("bits\t\t\t" + str(self.binaryInfo.get("bin").get("bits")) + "\n")
+                    self.fileProperties.append("canary\t\t\t" + str(self.binaryInfo.get("bin").get("canary")) + "\n")
+                    self.fileProperties.append("retguard\t\t\t" + str(self.binaryInfo.get("bin").get("retguard")) + "\n")
+                    self.fileProperties.append("class\t\t\t" + self.binaryInfo.get("bin").get("class") + "\n")
+                    self.fileProperties.append("cmp.csum\t\t\t" + str(self.binaryInfo.get("bin").get("cmp.csum")) + "\n")
+                    self.fileProperties.append("compiled\t\t\t" + self.binaryInfo.get("bin").get("compiled") + "\n")
+                    self.fileProperties.append("crypto\t\t\t" + str(self.binaryInfo.get("bin").get("crypto")) + "\n")
+                    self.fileProperties.append("endian\t\t\t" + self.binaryInfo.get("bin").get("endian") + "\n")
+                    self.fileProperties.append("havecode\t\t\t" + str(self.binaryInfo.get("bin").get("havecode")) + "\n")
+                    self.fileProperties.append("hdr.csum\t\t\t" + str(self.binaryInfo.get("bin").get("hdr.csum")) + "\n")
+                    self.fileProperties.append("guid\t\t\t" + self.binaryInfo.get("bin").get("guid") + "\n")
+                    self.fileProperties.append("laddr\t\t\t" + str(self.binaryInfo.get("bin").get("laddr")) + "\n")
+                    self.fileProperties.append("lang\t\t\t" + self.binaryInfo.get("bin").get("lang") + "\n")
+                    self.fileProperties.append("linenum\t\t\t" + str(self.binaryInfo.get("bin").get("linenum")) + "\n")
+                    self.fileProperties.append("lsyms\t\t\t" + str(self.binaryInfo.get("bin").get("lsyms")) + "\n")
+                    self.fileProperties.append("machine\t\t\t" + self.binaryInfo.get("bin").get("machine") + "\n")
+                    self.fileProperties.append("maxopsz\t\t\t" + str(self.binaryInfo.get("bin").get("maxopsz")) + "\n")
+                    self.fileProperties.append("minopsz\t\t\t" + str(self.binaryInfo.get("bin").get("minopsz")) + "\n")
+                    self.fileProperties.append("nx\t\t\t" + str(self.binaryInfo.get("bin").get("nx")) + "\n")
+                    self.fileProperties.append("os\t\t\t" + self.binaryInfo.get("bin").get("os") + "\n")
+                    self.fileProperties.append("overlay\t\t\t" + str(self.binaryInfo.get("bin").get("overlay")) + "\n")
+                    self.fileProperties.append("pcalign\t\t\t" + str(self.binaryInfo.get("bin").get("pcalign")) + "\n")
+                    self.fileProperties.append("pic\t\t\t" + str(self.binaryInfo.get("bin").get("pic")) + "\n")
+                    self.fileProperties.append("relocs\t\t\t" + str(self.binaryInfo.get("bin").get("relocs")) + "\n")
+                    self.fileProperties.append("signed\t\t\t" + str(self.binaryInfo.get("bin").get("signed")) + "\n")
+                    self.fileProperties.append("sanitiz\t\t\t" + str(self.binaryInfo.get("bin").get("sanitiz")) + "\n")
+                    self.fileProperties.append("static\t\t\t" + str(self.binaryInfo.get("bin").get("static")) + "\n")
+                    self.fileProperties.append("stripped\t\t\t" + str(self.binaryInfo.get("bin").get("stripped")) + "\n")
+                    self.fileProperties.append("subsys\t\t\t" + self.binaryInfo.get("bin").get("subsys") + "\n")
+                    self.fileProperties.append("va\t\t\t" + str(self.binaryInfo.get("bin").get("va")) + "\n")
+            except Exception as e:
                 self.binaryErrorWindow()
                 self.r2 = ""
                 self.fileProperties.setText("")
                 self.binaryFilePathField.setText("")
-            else:
-                self.binaryFilePathField.setText(str(self.path))
-                self.fileProperties.append("arch\t\t\t" + self.binaryInfo.get("bin").get("arch") + "\n")
-                self.fileProperties.append("baddr\t\t\t" + str(self.binaryInfo.get("bin").get("baddr")) + "\n")
-                self.fileProperties.append("binsz\t\t\t" + str(self.binaryInfo.get("bin").get("binsz")) + "\n")
-                self.fileProperties.append("bintype\t\t\t" + self.binaryInfo.get("bin").get("bintype") + "\n")
-                self.fileProperties.append("bits\t\t\t" + str(self.binaryInfo.get("bin").get("bits")) + "\n")
-                self.fileProperties.append("canary\t\t\t" + str(self.binaryInfo.get("bin").get("canary")) + "\n")
-                self.fileProperties.append("retguard\t\t\t" + str(self.binaryInfo.get("bin").get("retguard")) + "\n")
-                self.fileProperties.append("class\t\t\t" + self.binaryInfo.get("bin").get("class") + "\n")
-                self.fileProperties.append("cmp.csum\t\t\t" + str(self.binaryInfo.get("bin").get("cmp.csum")) + "\n")
-                self.fileProperties.append("compiled\t\t\t" + self.binaryInfo.get("bin").get("compiled") + "\n")
-                self.fileProperties.append("crypto\t\t\t" + str(self.binaryInfo.get("bin").get("crypto")) + "\n")
-                self.fileProperties.append("endian\t\t\t" + self.binaryInfo.get("bin").get("endian") + "\n")
-                self.fileProperties.append("havecode\t\t\t" + str(self.binaryInfo.get("bin").get("havecode")) + "\n")
-                self.fileProperties.append("hdr.csum\t\t\t" + str(self.binaryInfo.get("bin").get("hdr.csum")) + "\n")
-                self.fileProperties.append("guid\t\t\t" + self.binaryInfo.get("bin").get("guid") + "\n")
-                self.fileProperties.append("laddr\t\t\t" + str(self.binaryInfo.get("bin").get("laddr")) + "\n")
-                self.fileProperties.append("lang\t\t\t" + self.binaryInfo.get("bin").get("lang") + "\n")
-                self.fileProperties.append("linenum\t\t\t" + str(self.binaryInfo.get("bin").get("linenum")) + "\n")
-                self.fileProperties.append("lsyms\t\t\t" + str(self.binaryInfo.get("bin").get("lsyms")) + "\n")
-                self.fileProperties.append("machine\t\t\t" + self.binaryInfo.get("bin").get("machine") + "\n")
-                self.fileProperties.append("maxopsz\t\t\t" + str(self.binaryInfo.get("bin").get("maxopsz")) + "\n")
-                self.fileProperties.append("minopsz\t\t\t" + str(self.binaryInfo.get("bin").get("minopsz")) + "\n")
-                self.fileProperties.append("nx\t\t\t" + str(self.binaryInfo.get("bin").get("nx")) + "\n")
-                self.fileProperties.append("os\t\t\t" + self.binaryInfo.get("bin").get("os") + "\n")
-                self.fileProperties.append("overlay\t\t\t" + str(self.binaryInfo.get("bin").get("overlay")) + "\n")
-                self.fileProperties.append("pcalign\t\t\t" + str(self.binaryInfo.get("bin").get("pcalign")) + "\n")
-                self.fileProperties.append("pic\t\t\t" + str(self.binaryInfo.get("bin").get("pic")) + "\n")
-                self.fileProperties.append("relocs\t\t\t" + str(self.binaryInfo.get("bin").get("relocs")) + "\n")
-                self.fileProperties.append("signed\t\t\t" + str(self.binaryInfo.get("bin").get("signed")) + "\n")
-                self.fileProperties.append("sanitiz\t\t\t" + str(self.binaryInfo.get("bin").get("sanitiz")) + "\n")
-                self.fileProperties.append("static\t\t\t" + str(self.binaryInfo.get("bin").get("static")) + "\n")
-                self.fileProperties.append("stripped\t\t\t" + str(self.binaryInfo.get("bin").get("stripped")) + "\n")
-                self.fileProperties.append("subsys\t\t\t" + self.binaryInfo.get("bin").get("subsys") + "\n")
-                self.fileProperties.append("va\t\t\t" + str(self.binaryInfo.get("bin").get("va")) + "\n")
+
 
 
     def openWindow(self):
@@ -101,13 +141,15 @@ class Ui_MainWindow(object):
         r.setIcon(QMessageBox.Information)
         r.setStandardButtons(QMessageBox.Cancel | QMessageBox.Save)
 
-    def setupUi(self, MainWindow):
+    def setupUiMain(self, MainWindow):
 
         self.path = ""
         self.static = 0
         self.analysis = ""
         self.r2 = ""
         self.binaryInfo = ""
+        self.project = ""
+        self.binary = ""
 
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1318, 755)
@@ -533,7 +575,7 @@ class Ui_MainWindow(object):
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
-        self.retranslateUi(MainWindow)
+        self.retranslateUiMain(MainWindow)
         self.UI.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -547,7 +589,81 @@ class Ui_MainWindow(object):
 
         self.fileProperties.setText("Name\t\t\tValue\n")
 
-    def retranslateUi(self, MainWindow):
+        self.projectSaveButton.clicked.connect(self.saveProject)
+
+        self.projectDeleteButton.clicked.connect(self.deleteProject)
+
+
+    def setupUiCreate(self, Dialog):
+
+        self.project = ""
+
+        Dialog.setObjectName("New Project")
+        Dialog.resize(492, 300)
+        self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
+        self.buttonBox.setGeometry(QtCore.QRect(110, 240, 341, 32))
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.projectNameLabel = QtWidgets.QLabel(Dialog)
+        self.projectNameLabel.setGeometry(QtCore.QRect(20, 10, 81, 16))
+        self.projectNameLabel.setObjectName("projectNameLabel")
+        self.projectNameEdit = QtWidgets.QTextEdit(Dialog)
+        self.projectNameEdit.setGeometry(QtCore.QRect(20, 30, 431, 21))
+        self.projectNameEdit.setObjectName("projectNameEdit")
+        self.projectDescriptionLabel = QtWidgets.QLabel(Dialog)
+        self.projectDescriptionLabel.setGeometry(QtCore.QRect(20, 60, 131, 16))
+        self.projectDescriptionLabel.setObjectName("projectDescriptionLabel")
+        self.projectDescriptionEdit = QtWidgets.QTextEdit(Dialog)
+        self.projectDescriptionEdit.setGeometry(QtCore.QRect(20, 80, 431, 141))
+        self.projectDescriptionEdit.setObjectName("projectDescriptionEdit")
+
+        self.retranslateUiCreate(Dialog)
+        self.buttonBox.accepted.connect(Dialog.accept)
+        self.buttonBox.rejected.connect(Dialog.reject)
+        QtCore.QMetaObject.connectSlotsByName(Dialog)
+
+        self.buttonBox.accepted.connect(
+            lambda: self.createProject(self.projectNameEdit.toPlainText(), self.projectDescriptionEdit.toPlainText()))
+
+    def setupUiBinaryError(self, binaryFileErrorWindow):
+        binaryFileErrorWindow.setObjectName("binaryFileErrorWindow")
+        binaryFileErrorWindow.resize(400, 99)
+        self.buttonBox = QtWidgets.QDialogButtonBox(binaryFileErrorWindow)
+        self.buttonBox.setGeometry(QtCore.QRect(30, 50, 341, 32))
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.messageLabel = QtWidgets.QLabel(binaryFileErrorWindow)
+        self.messageLabel.setGeometry(QtCore.QRect(10, 10, 371, 31))
+        self.messageLabel.setObjectName("messageLabel")
+
+        self.retranslateUiBinaryError(binaryFileErrorWindow)
+        self.buttonBox.accepted.connect(binaryFileErrorWindow.accept)
+        self.buttonBox.rejected.connect(binaryFileErrorWindow.reject)
+        QtCore.QMetaObject.connectSlotsByName(binaryFileErrorWindow)
+
+    def setupUiFileError(self, fileSpecifiedErrorWindow):
+        fileSpecifiedErrorWindow.setObjectName("fileSpecifiedErrorWindow")
+        fileSpecifiedErrorWindow.resize(400, 99)
+        self.buttonBox = QtWidgets.QDialogButtonBox(fileSpecifiedErrorWindow)
+        self.buttonBox.setGeometry(QtCore.QRect(30, 60, 341, 32))
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.messageLabel = QtWidgets.QLabel(fileSpecifiedErrorWindow)
+        self.messageLabel.setGeometry(QtCore.QRect(10, 10, 371, 31))
+        self.messageLabel.setObjectName("messageLabel")
+        self.messageLabel_2 = QtWidgets.QLabel(fileSpecifiedErrorWindow)
+        self.messageLabel_2.setGeometry(QtCore.QRect(10, 30, 371, 31))
+        self.messageLabel_2.setObjectName("messageLabel_2")
+
+        self.retranslateUiFileError(fileSpecifiedErrorWindow)
+        self.buttonBox.accepted.connect(fileSpecifiedErrorWindow.accept)
+        self.buttonBox.rejected.connect(fileSpecifiedErrorWindow.reject)
+        QtCore.QMetaObject.connectSlotsByName(fileSpecifiedErrorWindow)
+
+    def retranslateUiMain(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "BEAT: Binary Extraction and Analysis Tool"))
         self.projectViewGroup.setTitle(_translate("MainWindow", "Project View"))
@@ -655,12 +771,30 @@ class Ui_MainWindow(object):
         self.searchDocumentButton.setText(_translate("MainWindow", "🔍 "))
         self.UI.setTabText(self.UI.indexOf(self.Documentation), _translate("MainWindow", "Documentation"))
 
+    def retranslateUiCreate(self, Dialog):
+        _translate = QtCore.QCoreApplication.translate
+        Dialog.setWindowTitle(_translate("New Project", "New Project"))
+        self.projectNameLabel.setText(_translate("Dialog", "Project Name"))
+        self.projectDescriptionLabel.setText(_translate("Dialog", "Project Description"))
+
+
+    def retranslateUiBinaryError(self, binaryFileErrorWindow):
+        _translate = QtCore.QCoreApplication.translate
+        binaryFileErrorWindow.setWindowTitle(_translate("binaryFileErrorWindow", "Error Message: x86 Architecture Binary File"))
+        self.messageLabel.setText(_translate("binaryFileErrorWindow", "The system only supports files that are of x86 architecture."))
+
+    def retranslateUiFileError(self, fileSpecifiedErrorWindow):
+        _translate = QtCore.QCoreApplication.translate
+        fileSpecifiedErrorWindow.setWindowTitle(_translate("fileSpecifiedErrorWindow", "Error Message: File Specified"))
+        self.messageLabel.setText(_translate("fileSpecifiedErrorWindow", "A project is associated with one binary file and cannot be "))
+        self.messageLabel_2.setText(_translate("fileSpecifiedErrorWindow", "saved without a binary file. Please provide a binary file."))
+
 
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
+    ui.setupUiMain(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
